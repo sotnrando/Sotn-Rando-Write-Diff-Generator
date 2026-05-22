@@ -87,11 +87,42 @@ def get_differences(file1, file2):
     return differences
 
 
+def format_output(differences, output_format):
+    if output_format == "json":
+        return json.dumps(differences, indent=4)
+    if output_format == "csv":
+        lines = ["address,value,type"]
+        for entry in differences:
+            lines.append(f"{entry['address']},{entry['value']},{entry['type']}")
+        return "\n".join(lines) + "\n"
+    if output_format == "randomizer":
+        write_methods = {
+            "char": "writeChar",
+            "short": "writeShort",
+            "word": "writeWord",
+        }
+        lines = []
+        for entry in differences:
+            method = write_methods[entry["type"]]
+            lines.append(
+                f"offset = data.{method}({entry['address']}, {entry['value']})"
+            )
+        return "\n".join(lines) + "\n"
+    raise ValueError(f"Unsupported output format: {output_format}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Compare hex addresses of two binary files.")
     parser.add_argument("file1", help="Path to the first binary file")
     parser.add_argument("file2", help="Path to the second binary file")
-    parser.add_argument("output", help="Path to save the differences JSON file")
+    parser.add_argument("output", help="Path to save the differences output file")
+    parser.add_argument(
+        "--format",
+        "-f",
+        choices=["json", "csv", "randomizer"],
+        default="json",
+        help="Output format: json (default), csv, or randomizer",
+    )
     args = parser.parse_args()
 
     file1_data = read_binary_file(args.file1)
@@ -100,9 +131,9 @@ def main():
     differences = get_differences(file1_data, file2_data)
 
     with open(args.output, "w") as f:
-        json.dump(differences, f, indent=4)
+        f.write(format_output(differences, args.format))
 
-    print(f"Differences saved to {args.output}")
+    print(f"Differences saved to {args.output} ({args.format})")
 
 
 if __name__ == "__main__":
